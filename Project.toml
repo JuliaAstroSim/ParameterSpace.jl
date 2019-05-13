@@ -1,0 +1,6 @@
+name = "ParameterSpace.jl"
+uuid = "3dc27d60-753a-11e9-1238-7578705f4120"
+authors = ["islent <leoislent@gmail.com>"]
+version = "0.1.0"
+
+[deps]
