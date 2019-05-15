@@ -46,21 +46,21 @@
     可以构建一个`struct`，定义`Name`是为了绘图，定义`result`是为了方便整理结果:
 
     ```julia
-    mutable struct Parameter
+    mutable struct Dim
         Name::String
         Index::Int64 # The location in the target function
         Range # Array or range
-        Parameter(Name::String, Index::Int64, Range) = new(Name, Index, Range)
+        Dim(Name::String, Index::Int64, Range) = new(Name, Index, Range)
     end
 
-    @inline length(p::Parameter)  = 1
-    @inline iterate(p::Parameter)  = (p,nothing)
-    @inline iterate(p::Parameter,st)  = nothing
+    @inline length(p::Dim)  = 1
+    @inline iterate(p::Dim)  = (p,nothing)
+    @inline iterate(p::Dim,st)  = nothing
     ```
 
     因此用户需要手动设置的有：
 
-    > 1. `Params::Array{Parameter,1}`
+    > 1. `Params::Array{Dim,1}`
     > 2. 调用目标模块的方式
     >     1. julia、c、python代码：函数指针
     >     2. 外部程序：shell命令
@@ -68,7 +68,16 @@
 
     与手动实现相比，十分方便
 
-    返回的
+    `ParameterSpace`在得到`Dim`数组（$length = m$）后，会构建一个$m$维张量，每个元素为一个`Parameter`:
+
+    ```julia
+    mutable struct Parameter
+        param::Array{Any,1}
+        result::Any
+    end
+    ```
+
+    其中`param`为`Dim`中各参数空间的全排列
 
 2. 参数文件
 
@@ -88,7 +97,7 @@
 
 #### 2.3.1 绘图
 
-0. 传入`Parameter`变量，根据`result`类型选择可视化方式
+0. 传入`Dim`变量，根据`result`类型选择可视化方式
 1. 如果每次运行结果返回一个值，可构成$m+1$维的数据，根据三维坐标、颜色、大小、形状进行可视化
 2. 对于数组型结果
     1. 一维数组（index也可以算作一维），比如旋转曲线，一般以多条曲线绘制在同一平面内
@@ -111,7 +120,7 @@
 
 名称、代码结构仅为粗略演示，部分代码结构甚至可能是错误的
 
-### 3.1 黑箱子函数调参
+### 3.1 黑匣子函数调参
 
 假设有一个目标函数：
 
@@ -125,15 +134,15 @@ end
 `ParameterSpace.jl`将会提供一个调参函数：
 
 ```julia
-function analyse_function(f, Params::Array{Parameter,1})
+function analyse_function(f, Params::Array{Dim,1})
 
 end
 ```
 
-显然用户仅仅需要提前设置一个`Parameter`数组：
+显然用户仅仅需要提前设置一个`Dim`数组：
 
 ```julia
-Params = [Parameter("x", 1, [1,2,4,8])]
+Params = [Dim("x", 1, [1,2,4,8])]
 ```
 
 则模拟之后进行可视化:
@@ -150,8 +159,8 @@ plot(Params)
 `ParameterSpace.jl`同样提供调参函数：
 
 ```julia
-function analyse_program(command::Cmd, analyse, Params::Array{Parameter,1}; ParameterType = "file")
-    if ParameterType == "file"
+function analyse_program(command::Cmd, analyse, Params::Array{Dim,1}; ResultType = "file")
+    if ResultType == "file"
         ...
             # Already in the iteration body
             write_param(param)
@@ -162,14 +171,14 @@ function analyse_program(command::Cmd, analyse, Params::Array{Parameter,1}; Para
 end
 ```
 
-用户需要提前设置`Parameter`数组，并告知程序调用的方式，以及分析数据的方式：
+用户需要提前设置`Dim`数组，并告知程序调用的方式，以及分析数据的方式：
 
 ```julia
-Params = [Parameter("x", 1, [1,2,4,8])]
+Params = [Dim("x", 1, [1,2,4,8])]
 
 command = `mpirun -np 4 ./Gadget2 ./galaxy.param`
 
-function analyse(param::Parameter, ...)
+function analyse(param::Dim, ...)
     ...
 end
 ```
@@ -177,7 +186,7 @@ end
 则模拟之后进行可视化:
 
 ```julia
-analyse_program(command, analyse, Params, ParameterType = "file")
+analyse_program(command, analyse, Params, ResultType = "file")
 plot(Params)
 ```
 
