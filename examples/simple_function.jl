@@ -12,10 +12,10 @@ function test()
     @show result
 
     ########################
-    #params = [Parameter("y", 2, 0:0.1:2)]
+    params = [Parameter("y", 2, 0:0.1:0.5)]
 
-    #result = analyse_function(g, params, 1.0)
-
+    result = analyse_function(g, params, 1.0)
+    @show result
 end
 
 test()

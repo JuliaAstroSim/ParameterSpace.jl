@@ -1,6 +1,6 @@
 module ParameterSpace
 
-using IterTools, DataFrames
+using IterTools, DataFrames, Plots
 
 import Base: iterate, length
 
@@ -34,7 +34,7 @@ function analyse_function(f::Function, Params::Array{Parameter,1}, arg...;)
 
     # Prepare the argument array with undef
     # Must insert from small index to larger ones
-    args = [arg...]
+    args = Array{Any,1}([arg...])
     for i in 1:(length(arg) + length(Params))
         for p in Params
             if i == p.Index
@@ -44,14 +44,17 @@ function analyse_function(f::Function, Params::Array{Parameter,1}, arg...;)
     end
 
     # Iterate
-    result = DataFrame(args = [], result = [])
+    result = DataFrame()
+    for p in Params
+        result[Symbol(p.Name)] = Any[]
+    end
+    result[:result] = Any[]
     for s in Space
         # Prepare for the argument list
-        for p in Params
-            args[p.Index] = s[p.Index]
-            @show args
+        for i in 1:length(Params)
+            args[Params[i].Index] = s[i]
         end
-        push!(result, (s, f(args...)))
+        push!(result, (s..., f(args...)))
     end
 
     return result
