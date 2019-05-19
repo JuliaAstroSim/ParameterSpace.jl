@@ -1,6 +1,6 @@
 module ParameterSpace
 
-using IterTools, DataFrames, Plots
+using IterTools, DataFrames, Printf
 
 import Base: iterate, length
 
@@ -59,9 +59,36 @@ function analyse_function(f::Function, Params::Array{Parameter,1}, arg...;)
 
     return result
 end
+########## Analyse Programmes
+function write_parameter_file(filename::String, content::String, args)
+    args = [args...]
+    c = @eval @sprintf($content, $args...)
+    f = open(filename, "w")
+    write(f, c)
+    close(f)
+end
 
-function analyse_program()
+function analyse_program(command::Cmd, content::String, filename::String, Params::Array{Parameter,1})
+    # Construct parameter space
+    Space = (Params[1].Range, )
+    for p in Params[2:end]
+        Space = (Space..., p.Range)
+    end
+    @show Space
+    Space = Iterators.product(Space...)
+    @show Space
 
+    mkdir("output")
+    cd("output")
+
+    for s in Space
+        folder = join(map(string, s), ", ")
+        mkdir(folder)
+        cd(folder)
+        write_parameter_file(filename, content, s)
+        run(command)
+        cd("../")
+    end
 end
 
 ########## Tools ##########
