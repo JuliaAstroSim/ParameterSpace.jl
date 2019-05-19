@@ -4,3 +4,6 @@ authors = ["islent <leoislent@gmail.com>"]
 version = "0.1.0"
 
 [deps]
+IterTools = "c8e1da08-722c-5040-9ed9-7db0dc04731e"
+DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
+Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
