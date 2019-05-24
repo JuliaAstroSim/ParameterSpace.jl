@@ -91,6 +91,38 @@ function analyse_program(command::Cmd, content::String, filename::String, Params
     end
 end
 
+function analyse_program(command::Cmd, content::String, filename::String, Params::Array{Parameter,1}, analyse::Function)
+    # Construct parameter space
+    Space = (Params[1].Range, )
+    for p in Params[2:end]
+        Space = (Space..., p.Range)
+    end
+    @show Space
+    Space = Iterators.product(Space...)
+    @show Space
+
+    mkdir("output")
+    cd("output")
+
+    result = DataFrame()
+    for p in Params
+        result[Symbol(p.Name)] = Any[]
+    end
+    result[:result] = Any[]
+
+    for s in Space
+        folder = join(map(string, s), ", ")
+        mkdir(folder)
+        cd(folder)
+        write_parameter_file(filename, content, s)
+        run(command)
+        push!(result, (s..., analyse()))
+        cd("../")
+    end
+
+    return result
+end
+
 ########## Tools ##########
 function find_result()
 

@@ -80,3 +80,9 @@ analyse_program(command, content, "param.txt", params)
 where `"param.txt"` defines the name of parameter file.
 
 Each set of parameters would be handled in a seperate sub-folder
+
+There is no general way to pass data from a program to Julia,
+however it's easy and convenient to analyse the output files automatically
+if you could provide a function that has no parameter but always returns values.
+The procedure is no different from tuning a function,
+so find more details in `examples/simple_program/`
