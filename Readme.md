@@ -1,6 +1,8 @@
 # ParameterSpace.jl
 
-General tuning tools
+General tuning tools for julia. Dive into the parameter space of functions or external programs.
+
+[![codecov](https://codecov.io/gh/JuliaAstroSim/ParameterSpace.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/JuliaAstroSim/ParameterSpace.jl)
 
 ## Install
 
