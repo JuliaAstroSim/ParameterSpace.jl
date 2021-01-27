@@ -1,6 +1,4 @@
-include("../../src/ParameterSpace.jl")
-
-using .ParameterSpace
+using ParameterSpace
 
 command = `julia E:/ParameterSpace.jl/examples/simple_program/print.jl`
 
@@ -12,12 +10,12 @@ content = "x = %d, y = %d"
 println("\nAnalyse a program without returns")
 analyse_program(command, content, "param.txt", params)
 
-function analyse()
+function analyse(x::Int)
     f = readlines("param.txt")
-    return length(f[1])
+    return length(f[1]) + x
 end
 
 println("\nAnalyse a program with returns")
-result = analyse_program(command, content, "param.txt", params, analyse)
+tuning = analyse_program(command, content, "param.txt", params, analyse, args = [-15])
 
-@show result
+@show tuning

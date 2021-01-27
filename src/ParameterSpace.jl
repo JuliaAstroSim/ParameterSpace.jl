@@ -7,6 +7,7 @@ import Base: iterate, length
 export
     Parameter,
 
+    write_parameter_file,
     analyse_function, analyse_program
 
 ########## Basic Data Structure ##########
@@ -22,18 +23,18 @@ end
 @inline iterate(p::Parameter,st)  = nothing
 
 ########## Analyse Functions ##########
+
+"""
+    function analyse_function(f::Function, Params::Array{Parameter,1}, arg...;)
+
+    
+"""
 function analyse_function(f::Function, Params::Array{Parameter,1}, arg...;)
     # Construct parameter space
-    Space = (Params[1].Range, )
-    for p in Params[2:end]
-        Space = (Space..., p.Range)
-    end
-    @show Space
-    Space = Iterators.product(Space...)
-    @show Space
+    Space = Iterators.product([p.Range for p in Params]...)
 
     # Prepare the argument array with undef
-    # Must insert from small index to larger ones
+    # Must insert from small index to larger
     args = Array{Any,1}([arg...])
     for i in 1:(length(arg) + length(Params))
         for p in Params
@@ -44,22 +45,29 @@ function analyse_function(f::Function, Params::Array{Parameter,1}, arg...;)
     end
 
     # Iterate
-    result = DataFrame()
+    tuning = DataFrame()
     for p in Params
-        result[Symbol(p.Name)] = Any[]
+        tuning[!, Symbol(p.Name)] = Any[]
     end
-    result[:result] = Any[]
+    tuning[!, :result] = Any[]
     for s in Space
         # Prepare for the argument list
         for i in 1:length(Params)
             args[Params[i].Index] = s[i]
         end
-        push!(result, (s..., f(args...)))
+        push!(tuning, (s..., f(args...)))
     end
 
-    return result
+    return tuning
 end
-########## Analyse Programmes
+
+########## Analyse Programs
+
+"""
+    function write_parameter_file(filename::String, content::String, args)
+
+
+"""
 function write_parameter_file(filename::String, content::String, args)
     args = [args...]
     c = @eval @sprintf($content, $args...)
@@ -68,47 +76,46 @@ function write_parameter_file(filename::String, content::String, args)
     close(f)
 end
 
-function analyse_program(command::Cmd, content::String, filename::String, Params::Array{Parameter,1})
-    # Construct parameter space
-    Space = (Params[1].Range, )
-    for p in Params[2:end]
-        Space = (Space..., p.Range)
-    end
-    @show Space
-    Space = Iterators.product(Space...)
-    @show Space
+"""
+    function emptyfunction()
 
-    mkdir("output")
-    cd("output")
+    A function that does nothing.
+"""
+function emptyfunction()
+end
 
-    for s in Space
-        folder = join(map(string, s), ", ")
-        mkdir(folder)
-        cd(folder)
-        write_parameter_file(filename, content, s)
-        run(command)
-        cd("../")
+"""
+    function mkoutputdir(dir::String)
+
+Empty the directory if it exists. Create one if the directory does not exist.
+"""
+function mkoutputdir(dir::String)
+    if isdir(dir)
+        for d in readdir(dir)
+            rm(joinpath(dir, d), force = true, recursive = true)
+        end
+    else
+        mkdir(dir)
     end
 end
 
-function analyse_program(command::Cmd, content::String, filename::String, Params::Array{Parameter,1}, analyse::Function)
+"""
+    function analyse_program(command::Cmd, content::String, filename::String, Params::Array{Parameter,1}, analyse::Function)
+
+
+"""
+function analyse_program(command::Cmd, content::String, filename::String, Params::Array{Parameter,1}, analyse::Function = emptyfunction; args = [], OutputDir = "output")
     # Construct parameter space
-    Space = (Params[1].Range, )
-    for p in Params[2:end]
-        Space = (Space..., p.Range)
-    end
-    @show Space
-    Space = Iterators.product(Space...)
-    @show Space
+    Space = Iterators.product([p.Range for p in Params]...)
 
-    mkdir("output")
-    cd("output")
+    mkoutputdir(OutputDir)
+    cd(OutputDir)
 
-    result = DataFrame()
+    tuning = DataFrame()
     for p in Params
-        result[Symbol(p.Name)] = Any[]
+        tuning[!,Symbol(p.Name)] = Any[]
     end
-    result[:result] = Any[]
+    tuning[!,:result] = Any[]
 
     for s in Space
         folder = join(map(string, s), ", ")
@@ -116,18 +123,12 @@ function analyse_program(command::Cmd, content::String, filename::String, Params
         cd(folder)
         write_parameter_file(filename, content, s)
         run(command)
-        push!(result, (s..., analyse()))
+        push!(tuning, (s..., analyse(args...)))
         cd("../")
     end
 
-    return result
+    cd("../")
+    return tuning
 end
-
-########## Tools ##########
-function find_result()
-
-end
-
-########## Plotting ##########
 
 end # module

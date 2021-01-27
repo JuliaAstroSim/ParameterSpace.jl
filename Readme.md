@@ -31,25 +31,45 @@ params = [Parameter("x", 1, 0:2),
 which means there would be $3 \times 3 = 9$ combination of parameters in total, and `ParameterSpace` would help you run tests over all of them by calling the target function iterately:
 
 ```julia
-result = analyse_function(g, params)
+tuning = analyse_function(g, params)
 ```
 
 The returns are stored by `DataFrames` to give you enough freedom in data processing
 
 ```julia
-result = 9×3 DataFrames.DataFrame
-│ Row │ x   │ y   │ result │
-│     │ Any │ Any │ Any    │
-├─────┼─────┼─────┼────────┤
-│ 1   │ 0   │ 0   │ 0      │
-│ 2   │ 1   │ 0   │ 0      │
-│ 3   │ 2   │ 0   │ 0      │
-│ 4   │ 0   │ 1   │ 0      │
-│ 5   │ 1   │ 1   │ 1      │
-│ 6   │ 2   │ 1   │ 2      │
-│ 7   │ 0   │ 2   │ 0      │
-│ 8   │ 1   │ 2   │ 2      │
-│ 9   │ 2   │ 2   │ 4      │
+julia> tuning = analyse_function(g, params)
+9×3 DataFrame
+ Row │ x    y    result 
+     │ Any  Any  Any    
+─────┼──────────────────
+   1 │ 0    0    0
+   2 │ 1    0    0
+   3 │ 2    0    0
+   4 │ 0    1    0
+   5 │ 1    1    1
+   6 │ 2    1    2
+   7 │ 0    2    0
+   8 │ 1    2    2
+   9 │ 2    2    4
+```
+
+If only tuning the second parameter `y` of function `g`, the other parameters should be set in order:
+```julia
+params = [Parameter("y", 2, 0:0.1:0.5)]
+```
+
+```julia
+julia>     result = analyse_function(g, params, 1.0)
+6×2 DataFrame
+ Row │ y    result 
+     │ Any  Any    
+─────┼─────────────
+   1 │ 0.0  0.0
+   2 │ 0.1  0.1
+   3 │ 0.2  0.2
+   4 │ 0.3  0.3
+   5 │ 0.4  0.4
+   6 │ 0.5  0.5
 ```
 
 ### Tuning a program
@@ -81,18 +101,15 @@ where `"param.txt"` defines the name of parameter file.
 
 Each set of parameters would be handled in a seperate sub-folder
 
-There is no general way to pass data from a program to Julia,
-however it's easy and convenient to analyse the output files automatically
-if you could provide a function that has no parameter but always returns values.
-The procedure is no different from tuning a function:
+There is no general way to pass data from a program to Julia, however it's easy and convenient to analyse the output files automatically if you could provide an anlysis function. The procedure has no difference from tuning a function, and the parameters of analysis function could be set with keyword `args::Union{Tuple,Array}`:
 
 ```julia
-function analyse()
+function analyse(args...)
     ...
     return ...
 end
 
-analyse_program(command, content, "param.txt", params, analyse)
+analyse_program(command, content, "param.txt", params, analyse, args = [])
 ```
 
 more details in `examples/simple_program/`
