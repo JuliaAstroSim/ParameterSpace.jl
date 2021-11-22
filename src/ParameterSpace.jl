@@ -11,10 +11,20 @@ export
     analyse_function, analyse_program
 
 ########## Basic Data Structure ##########
-struct Parameter
+"""
+    struct Parameter{A}
+
+Defines the information of tuning parameter
+
+# Fields
+- `Name::String`: label of the parameter
+- `Index::Int64`: The location of parameter in the target function. For example, the location of parameter `a` in function `f(x, a)` is `2`
+-     `Range::A`: Tuning range of the parameter
+"""
+struct Parameter{A}
     Name::String
-    Index::Int64 # The location in the target function
-    Range # Array or range
+    Index::Int64
+    Range::A
     Parameter(Name::String, Index::Int64, Range) = new(Name, Index, Range)
 end
 
@@ -27,7 +37,21 @@ end
 """
     function analyse_function(f::Function, Params::Array{Parameter,1}, arg...;)
 
-    
+Tuning the function `f` over some of its arguments defined in `Params`. The outputs of `f` are stored in a `DataFrame`.
+
+# Example
+```julia
+g(x::Real, y::Real) = x * y
+params = [Parameter("x", 1, 0:2),
+          Parameter("y", 2, 0:2)]
+result = analyse_function(g, params)
+```
+
+If only tuning the second parameter y of function g, the other arguments should be set in order:
+```julia
+params = [Parameter("y", 2, 0:0.1:0.5)]
+result = analyse_function(g, params, 1.0)
+```
 """
 function analyse_function(f::Function, Params::Array{Parameter,1}, arg...;)
     # Construct parameter space
@@ -64,13 +88,13 @@ end
 ########## Analyse Programs
 
 """
-    function write_parameter_file(filename::String, content::String, args)
+    function write_parameter_file(filename::String, formatstring::String, args)
 
-
+Write formatted string into file.
 """
-function write_parameter_file(filename::String, content::String, args)
+function write_parameter_file(filename::String, formatstring::String, args)
     args = [args...]
-    c = @eval @sprintf($content, $args...)
+    c = Printf.format(Printf.Format(formatstring), args...)
     f = open(filename, "w")
     write(f, c)
     close(f)
@@ -79,7 +103,7 @@ end
 """
     function emptyfunction()
 
-    A function that does nothing.
+A function that does nothing.
 """
 function emptyfunction()
 end
@@ -100,9 +124,33 @@ function mkoutputdir(dir::String)
 end
 
 """
-    function analyse_program(command::Cmd, content::String, filename::String, Params::Array{Parameter,1}, analyse::Function)
+    function analyse_program(command::Cmd, content::String, filename::String, Params::Array{Parameter,1}, analyse::Function = emptyfunction; args = [], OutputDir = "output")
 
+Programs are tuned by altering the parameter files.
 
+# Arguments
+- `command::Cmd`: command line code to execute the program
+- `content::String`: formatted string to write into the parameter file used by the program
+- `filename::String`: filename of the parameter file.
+- `Params::Array{Parameter,1}`
+- `analyse::Function`: the callback function to analyse output files. There is no general way to pass data from a program to Julia, 
+    however it's easy and convenient to analyse the output files automatically if you could provide an anlysis function.
+    the parameters of analysis function could be set with keyword `args::Union{Tuple,Array}`
+
+# Example
+```julia
+command = `julia E:/ParameterSpace.jl/examples/simple_program/print.jl`
+content = "x = %d, y = %d"
+params = [Parameter("x", 1, 0:2),
+          Parameter("y", 2, 0:2)]
+result = analyse_program(command, content, "param.txt", params)
+
+function analyse(x::Int)
+    f = readlines("param.txt")
+    return length(f[1]) + x
+end
+result = analyse_program(command, content, "param.txt", params, analyse, args = [-15])
+```
 """
 function analyse_program(command::Cmd, content::String, filename::String, Params::Array{Parameter,1}, analyse::Function = emptyfunction; args = [], OutputDir = "output")
     # Construct parameter space
