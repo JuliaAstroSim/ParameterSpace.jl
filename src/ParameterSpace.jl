@@ -25,8 +25,8 @@ struct Parameter{A}
     Name::String
     Index::Int64
     Range::A
-    Parameter(Name::String, Index::Int64, Range) = new(Name, Index, Range)
 end
+Parameter(Name::String, Index::Int64, Range) = Parameter(Name, Index, Range)
 
 @inline length(p::Parameter)  = 1
 @inline iterate(p::Parameter)  = (p,nothing)
