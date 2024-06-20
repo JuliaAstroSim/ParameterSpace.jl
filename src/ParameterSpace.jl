@@ -1,12 +1,12 @@
 module ParameterSpace
 
 using IterTools, DataFrames, Printf
+using ProgressMeter
 
 import Base: iterate, length
 
 export
     Parameter,
-
     write_parameter_file,
     analyse_function, analyse_program
 
@@ -34,7 +34,7 @@ end
 ########## Analyse Functions ##########
 
 """
-    function analyse_function(f::Function, Params::Array{Parameter,1}, arg...;)
+    function analyse_function(f::Function, Params::Array{Parameter,1}, arg...; kw...)
 
 Tuning the function `f` over some of its arguments defined in `Params`. The outputs of `f` are stored in a `DataFrame`.
 
@@ -52,7 +52,7 @@ params = [Parameter("y", 2, 0:0.1:0.5)]
 result = analyse_function(g, params, 1.0)
 ```
 """
-function analyse_function(f::Function, Params::Array{Parameter,1}, arg...;)
+function analyse_function(f::Function, Params, arg...; kw...)
     # Construct parameter space
     Space = Iterators.product([p.Range for p in Params]...)
 
@@ -73,12 +73,12 @@ function analyse_function(f::Function, Params::Array{Parameter,1}, arg...;)
         tuning[!, Symbol(p.Name)] = Any[]
     end
     tuning[!, :result] = Any[]
-    for s in Space
+    @showprogress for s in Space
         # Prepare for the argument list
         for i in 1:length(Params)
             args[Params[i].Index] = s[i]
         end
-        push!(tuning, (s..., f(args...)))
+        push!(tuning, (s..., f(args...; kw...)))
     end
 
     return tuning
@@ -151,7 +151,7 @@ end
 result = analyse_program(command, content, "param.txt", params, analyse, args = [-15])
 ```
 """
-function analyse_program(command::Cmd, content::String, filename::String, Params::Array{Parameter,1}, analyse::Function = emptyfunction; args = [], OutputDir = "output")
+function analyse_program(command::Cmd, content::String, filename::String, Params, analyse::Function = emptyfunction; args = [], OutputDir = "output")
     # Construct parameter space
     Space = Iterators.product([p.Range for p in Params]...)
 
@@ -164,7 +164,7 @@ function analyse_program(command::Cmd, content::String, filename::String, Params
     end
     tuning[!,:result] = Any[]
 
-    for s in Space
+    @showprogress for s in Space
         folder = join(map(string, s), ", ")
         mkdir(folder)
         cd(folder)

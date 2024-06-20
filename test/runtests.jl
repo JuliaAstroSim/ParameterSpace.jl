@@ -18,13 +18,14 @@ end
 
 @testset "Tuning program" begin
     script = joinpath(pwd(), "program.jl")
-    command = `julia $script`
+    command = `julia --startup-file=no $script`
 
     params = [Parameter("x", 1, [1,10,100]),
               Parameter("y", 2, [1000,10000])]
 
     content = "x = %d, y = %d"
 
+    # param.txt is writen before running the program, we simply read the file
     function analyse(x::Int)
         f = readlines("param.txt")
         return length(f[1]) + x
