@@ -52,7 +52,11 @@ params = [Parameter("y", 2, 0:0.1:0.5)]
 result = analyse_function(g, params, 1.0)
 ```
 """
-function analyse_function(f::Function, Params, arg...; kw...)
+function analyse_function(func::Function, Params, arg...;
+    outputdir = "output",
+    filename = "ParameterSpace_log.csv",
+    kw...
+)
     # Construct parameter space
     Space = Iterators.product([p.Range for p in Params]...)
 
@@ -67,18 +71,36 @@ function analyse_function(f::Function, Params, arg...; kw...)
         end
     end
 
-    # Iterate
+    # initiate data
     tuning = DataFrame()
     for p in Params
         tuning[!, Symbol(p.Name)] = Any[]
     end
     tuning[!, :result] = Any[]
-    @showprogress for s in Space
-        # Prepare for the argument list
-        for i in 1:length(Params)
-            args[Params[i].Index] = s[i]
+
+    if !isnothing(outputdir)
+        file = open(joinpath(outputdir, filename), "w")
+        write(file, join(names(tuning), ";") * "\n")
+    end
+
+    try
+        @showprogress for s in Space
+            # Prepare for the argument list
+            for i in 1:length(Params)
+                args[Params[i].Index] = s[i]
+            end
+            coord = (s..., func(args...; kw...))
+            push!(tuning, coord)
+
+            if !isnothing(outputdir)
+                write(file, join(string.(coord), ";") * "\n")
+            end
         end
-        push!(tuning, (s..., f(args...; kw...)))
+        close(file)
+    catch e
+        throw(e)
+    finally
+        close(file)
     end
 
     return tuning
