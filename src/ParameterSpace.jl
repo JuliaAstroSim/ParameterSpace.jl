@@ -102,6 +102,10 @@ function analyse_function(func::Function, Params, arg...;
     tuning[!, :result] = Any[]
 
     if !isnothing(outputdir)
+        if !isdir(outputdir)
+            mkpath(outputdir)
+        end
+
         file = open(joinpath(outputdir, filename), "w")
         write(file, join(names(tuning), ";") * "\n")
     end
@@ -204,13 +208,17 @@ end
 result = analyse_program(command, content, "param.txt", params, analyse, args = [-15])
 ```
 """
-function analyse_program(command::Cmd, content::String, filename::String, Params, analyse::Function = emptyfunction; args = [], OutputDir = "output")
+function analyse_program(command::Cmd, content::String, filename::String, Params, analyse::Function = emptyfunction;
+    args = [], outputdir = "output",
+)
     # Construct parameter space
     Cases = collect(Iterators.product([p.Range for p in Params]...))
     @info "Total parameter combinations: $(length(Cases))"
 
-    mkoutputdir(OutputDir)
-    cd(OutputDir)
+    if !isdir(outputdir)
+        mkpath(outputdir)
+    end
+    cd(outputdir)
 
     tuning = DataFrame()
     for p in Params
