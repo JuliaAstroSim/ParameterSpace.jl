@@ -5,10 +5,9 @@ using ProgressMeter
 
 import Base: iterate, length
 
-export
-    Parameter,
-    write_parameter_file,
-    analyse_function, analyse_program
+export Parameter, parameter_dimension, parameter_count
+export write_parameter_file
+export analyse_function, analyse_program
 
 ########## Basic Data Structure ##########
 """
@@ -27,9 +26,32 @@ struct Parameter{A}
     Range::A
 end
 
+# Pretty printing
+function Base.show(io::IO, p::Parameter)
+    print(io, "Parameter ", p.Index, ": ", p.Name, " -->", p.Range)
+end
+
 @inline length(p::Parameter)  = 1
 @inline iterate(p::Parameter)  = (p,nothing)
 @inline iterate(p::Parameter,st)  = nothing
+
+"""
+    function parameter_dimension(a::AbstractArray{T,N}) where T<:Parameter where N
+
+Return an array of lengths in each parameter dimension.
+"""
+function parameter_dimension(a::AbstractArray{T,N}) where T<:Parameter where N
+    return [length(p.Range) for p in a]
+end
+
+"""
+    function parameter_count(a::AbstractArray{T,N}) where T<:Parameter where N
+
+Count the total number of combinations of parameters
+"""
+function parameter_count(a::AbstractArray{T,N}) where T<:Parameter where N
+    return prod(parameter_dimension(a))
+end
 
 ########## Analyse Functions ##########
 
@@ -58,7 +80,8 @@ function analyse_function(func::Function, Params, arg...;
     kw...
 )
     # Construct parameter space
-    Space = Iterators.product([p.Range for p in Params]...)
+    Cases = collect(Iterators.product([p.Range for p in Params]...))
+    @info "Total parameter combinations: $(length(Cases))"
 
     # Prepare the argument array with undef
     # Must insert from small index to larger
@@ -84,17 +107,25 @@ function analyse_function(func::Function, Params, arg...;
     end
 
     try
-        @showprogress for s in Space
+        progress = Progress(length(Cases); desc = "Exploring parameter space: ")
+        for c in eachindex(Cases)
             # Prepare for the argument list
             for i in 1:length(Params)
-                args[Params[i].Index] = s[i]
+                args[Params[i].Index] = Cases[c][i]
             end
-            coord = (s..., func(args...; kw...))
+            result = func(args...; kw...)
+            coord = (Cases[c]..., result)
             push!(tuning, coord)
 
             if !isnothing(outputdir)
                 write(file, join(string.(coord), ";") * "\n")
             end
+
+            next!(progress, showvalues = [
+                ("case", c),
+                ("params", Cases[c]),
+                ("result", result),
+            ])
         end
         close(file)
     catch e
@@ -175,7 +206,8 @@ result = analyse_program(command, content, "param.txt", params, analyse, args = 
 """
 function analyse_program(command::Cmd, content::String, filename::String, Params, analyse::Function = emptyfunction; args = [], OutputDir = "output")
     # Construct parameter space
-    Space = Iterators.product([p.Range for p in Params]...)
+    Cases = collect(Iterators.product([p.Range for p in Params]...))
+    @info "Total parameter combinations: $(length(Cases))"
 
     mkoutputdir(OutputDir)
     cd(OutputDir)
@@ -186,14 +218,25 @@ function analyse_program(command::Cmd, content::String, filename::String, Params
     end
     tuning[!,:result] = Any[]
 
-    @showprogress for s in Space
-        folder = join(map(string, s), ", ")
-        mkdir(folder)
-        cd(folder)
-        write_parameter_file(filename, content, s)
-        run(command)
-        push!(tuning, (s..., analyse(args...)))
-        cd("../")
+    try
+        progress = Progress(length(Cases); desc = "Exploring parameter space: ")
+        for c in eachindex(Cases)
+            folder = join(map(string, Cases[c]), ", ")
+            mkdir(folder)
+            cd(folder)
+            write_parameter_file(filename, content, Cases[c])
+            run(command)
+            push!(tuning, (Cases[c]..., analyse(args...)))
+            cd("../")
+
+            next!(progress, showvalues = [
+                ("case", c),
+                ("params", Cases[c]),
+            ])
+        end
+    catch e
+        throw(e)
+    finally
     end
 
     cd("../")
