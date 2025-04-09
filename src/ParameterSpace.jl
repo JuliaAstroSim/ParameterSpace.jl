@@ -123,6 +123,7 @@ function analyse_function(func::Function, Params, arg...;
 
             if !isnothing(outputdir)
                 write(file, join(string.(coord), ";") * "\n")
+                flush(file)
             end
 
             next!(progress, showvalues = [
