@@ -75,7 +75,7 @@ result = analyse_function(g, params, 1.0)
 ```
 """
 function analyse_function(func::Function, Params, arg...;
-    outputdir = "output",
+    folder = "output",
     filename = "ParameterSpace_log.csv",
     kw...
 )
@@ -101,12 +101,12 @@ function analyse_function(func::Function, Params, arg...;
     end
     tuning[!, :result] = Any[]
 
-    if !isnothing(outputdir)
-        if !isdir(outputdir)
-            mkpath(outputdir)
+    if !isnothing(folder)
+        if !isdir(folder)
+            mkpath(folder)
         end
 
-        file = open(joinpath(outputdir, filename), "w")
+        file = open(joinpath(folder, filename), "w")
         write(file, join(names(tuning), ";") * "\n")
     end
 
@@ -121,7 +121,7 @@ function analyse_function(func::Function, Params, arg...;
             coord = (Cases[c]..., result)
             push!(tuning, coord)
 
-            if !isnothing(outputdir)
+            if !isnothing(folder)
                 write(file, join(string.(coord), ";") * "\n")
                 flush(file)
             end
