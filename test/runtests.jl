@@ -31,6 +31,8 @@ end
         return length(f[1]) + x
     end
 
-    tuning = analyse_program(command, content, "param.txt", params, analyse, args = [-15])
+    tuning = analyse_program(command, content, "param.txt", params, analyse, args = [-15];
+        folder = "output/program"
+    )
     @test sum(tuning.result) == 9
 end

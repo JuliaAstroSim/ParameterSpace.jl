@@ -75,8 +75,9 @@ result = analyse_function(g, params, 1.0)
 ```
 """
 function analyse_function(func::Function, Params, arg...;
-    folder = "output",
-    filename = "ParameterSpace_log.csv",
+    folder::AbstractString = "output",
+    filename::AbstractString = "ParameterSpace_log.csv",
+    writemode::AbstractString = "w",
     kw...
 )
     # Construct parameter space
@@ -101,12 +102,12 @@ function analyse_function(func::Function, Params, arg...;
     end
     tuning[!, :result] = Any[]
 
-    if !isnothing(folder)
-        if !isdir(folder)
-            mkpath(folder)
-        end
+    if !isdir(folder)
+        mkpath(folder)
+    end
 
-        file = open(joinpath(folder, filename), "w")
+    file = open(joinpath(folder, filename), writemode)
+    if writemode == "w"
         write(file, join(names(tuning), ";") * "\n")
     end
 
@@ -209,17 +210,21 @@ end
 result = analyse_program(command, content, "param.txt", params, analyse, args = [-15])
 ```
 """
-function analyse_program(command::Cmd, content::String, filename::String, Params, analyse::Function = emptyfunction;
-    args = [], outputdir = "output",
+function analyse_program(command::Cmd, content::AbstractString, paramfilename::AbstractString, Params, analyse::Function = emptyfunction;
+    args = [],
+    folder::AbstractString = "output",
+    filename::AbstractString = "ParameterSpace_log.csv",
+    writemode::AbstractString = "w",
+    kw...
 )
     # Construct parameter space
     Cases = collect(Iterators.product([p.Range for p in Params]...))
     @info "Total parameter combinations: $(length(Cases))"
 
-    if !isdir(outputdir)
-        mkpath(outputdir)
+    if !isdir(folder)
+        mkpath(folder)
     end
-    cd(outputdir)
+    cd(folder)
 
     tuning = DataFrame()
     for p in Params
@@ -227,25 +232,40 @@ function analyse_program(command::Cmd, content::String, filename::String, Params
     end
     tuning[!,:result] = Any[]
 
+    file = open(filename, writemode)
+    if writemode == "w"
+        write(file, join(names(tuning), ";") * "\n")
+    end
+
     try
         progress = Progress(length(Cases); desc = "Exploring parameter space: ")
         for c in eachindex(Cases)
-            folder = join(map(string, Cases[c]), ", ")
-            mkdir(folder)
-            cd(folder)
-            write_parameter_file(filename, content, Cases[c])
+            folder_tuning = join(map(string, Cases[c]), ", ")
+            mkdir(folder_tuning)
+            cd(folder_tuning)
+            write_parameter_file(paramfilename, content, Cases[c])
             run(command)
-            push!(tuning, (Cases[c]..., analyse(args...)))
+            result = analyse(args...; kw...)
+            coord = (Cases[c]..., result)
+            push!(tuning, coord)
             cd("../")
+
+            if !isnothing(folder)
+                write(file, join(string.(coord), ";") * "\n")
+                flush(file)
+            end
 
             next!(progress, showvalues = [
                 ("case", c),
                 ("params", Cases[c]),
+                ("result", result),
             ])
         end
+        close(file)
     catch e
         throw(e)
     finally
+        close(file)
     end
 
     cd("../")
