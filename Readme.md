@@ -1,117 +1,269 @@
 # ParameterSpace.jl
 
-General tuning tools for julia. Dive into the parameter space of functions or external programs.
+Parameter space exploration and tuning tools for Julia. Supports function tuning, program tuning, and various sampling strategies.
 
 [![codecov](https://codecov.io/gh/JuliaAstroSim/ParameterSpace.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/JuliaAstroSim/ParameterSpace.jl)
 
-## Install
+## Installation
 
 ```julia
-]add ParameterSpace
+using Pkg
+Pkg.add("ParameterSpace")
 using ParameterSpace
 ```
 
-## Usage
+## Quick Start
 
-Examples could be found in folder `examples`
-
-### Tuning a function
-
-Let's take a simple function for example:
+### Basic Usage with ParamSpace
 
 ```julia
-@inline g(x::Real, y::Real) = x * y
-```
+using ParameterSpace
 
-First construct the parameter space:
+# Define parameter dimensions
+pspace = ParamSpace([
+    ParamDim("x", values=[1, 2, 3]),
+    ParamDim("y", range=(0, 10, 2))  # 0, 2, 4, 6, 8, 10
+])
 
-```julia
-params = [Parameter("x", 1, 0:2),
-          Parameter("y", 2, 0:2)]
-```
-
-which means there would be $3 \times 3 = 9$ combination of parameters in total, and `ParameterSpace` would help you run tests over all of them by calling the target function iterately:
-
-```julia
-tuning = analyse_function(g, params)
-```
-
-The returns are stored by `DataFrames` to give you enough freedom in data processing
-
-```julia
-julia> tuning = analyse_function(g, params)
-9×3 DataFrame
- Row │ x    y    result 
-     │ Any  Any  Any    
-─────┼──────────────────
-   1 │ 0    0    0
-   2 │ 1    0    0
-   3 │ 2    0    0
-   4 │ 0    1    0
-   5 │ 1    1    1
-   6 │ 2    1    2
-   7 │ 0    2    0
-   8 │ 1    2    2
-   9 │ 2    2    4
-```
-
-If only tuning the second parameter `y` of function `g`, the other parameters should be set in order:
-```julia
-params = [Parameter("y", 2, 0:0.1:0.5)]
-```
-
-```julia
-julia>     result = analyse_function(g, params, 1.0)
-6×2 DataFrame
- Row │ y    result 
-     │ Any  Any    
-─────┼─────────────
-   1 │ 0.0  0.0
-   2 │ 0.1  0.1
-   3 │ 0.2  0.2
-   4 │ 0.3  0.3
-   5 │ 0.4  0.4
-   6 │ 0.5  0.5
-```
-
-### Tuning a program
-
-It is assumed that all of the parameters are passed through parameter file. First you need to tell `ParameterSpace` how to run your program, by define a `Cmd`:
-
-```julia
-command = `julia E:/ParameterSpace.jl/examples/simple_program/print.jl`
-```
-
-It may cause issues if you do not run the program from an absolute path.
-
-Then write down the content of parameter file in formatted string:
-
-```julia
-content = "x = %d, y = %d"
-```
-
-Construct parameter space and use the tuning tool:
-
-```julia
-params = [Parameter("x", 1, 0:2),
-          Parameter("y", 2, 0:2)]
-
-analyse_program(command, content, "param.txt", params)
-```
-
-where `"param.txt"` defines the name of parameter file.
-
-Each set of parameters would be handled in a seperate sub-folder
-
-There is no general way to pass data from a program to Julia, however it's easy and convenient to analyse the output files automatically if you could provide an anlysis function. The procedure has no difference from tuning a function, and the parameters of analysis function could be set with keyword `args::Union{Tuple,Array}`:
-
-```julia
-function analyse(args...)
-    ...
-    return ...
+# Iterate over all combinations
+for params in pspace
+    println("x=$(params.x), y=$(params.y)")
 end
 
-analyse_program(command, content, "param.txt", params, analyse, args = [])
+# Analyze a function
+f(params) = params.x * params.y
+result = analyse_function(f, pspace)
 ```
 
-more details in `examples/simple_program/`
+### Sampling Strategies
+
+For large parameter spaces, use sampling strategies:
+
+```julia
+# Random sampling
+result = analyse_function(f, pspace; strategy=RandomSampling(seed=42), n_samples=100)
+
+# Latin Hypercube Sampling (better coverage)
+result = analyse_function(f, pspace; strategy=LatinHypercubeSampling(), n_samples=100)
+
+# Sobol sequence (low discrepancy, deterministic)
+result = analyse_function(f, pspace; strategy=SobolSampling(), n_samples=100)
+
+# Grid sampling (full enumeration)
+result = analyse_function(f, pspace; strategy=GridSampling())
+```
+
+### Configuration Files
+
+Define parameter spaces in YAML or TOML:
+
+```yaml
+# params.yaml
+parameters:
+  x:
+    values: [1, 2, 3]
+    default: 2
+  y:
+    range: [0, 10, 2]
+  z:
+    linspace: [0.0, 1.0, 11]
+```
+
+```julia
+pspace = load_yaml("params.yaml")
+```
+
+## Detailed Usage
+
+### ParamDim: Parameter Dimension
+
+`ParamDim` defines a single parameter dimension with multiple construction methods:
+
+```julia
+# Direct values
+ParamDim("x", values=[1, 2, 3, 4, 5])
+
+# Arithmetic sequence: start, stop, step
+ParamDim("y", range=(0, 10, 2))  # [0, 2, 4, 6, 8, 10]
+
+# Linearly spaced: start, stop, n points
+ParamDim("z", linspace=(0.0, 1.0, 11))  # 11 points from 0 to 1
+
+# Logarithmically spaced: 10^a to 10^b, n points
+ParamDim("w", logspace=(-1, 1, 5))  # [0.1, 1.0, 10.0]
+
+# With default value and mask
+ParamDim("x", values=[1,2,3,4,5], default=3, mask=[true, false, true, true, false])
+```
+
+### ParamSpace: Multi-dimensional Parameter Space
+
+```julia
+# From vector
+pspace = ParamSpace([
+    ParamDim("x", values=[1, 2, 3]),
+    ParamDim("y", values=[1, 2])
+])
+
+# From dictionary
+pspace = ParamSpace(Dict(
+    "x" => ParamDim("x", values=[1, 2, 3]),
+    "y" => ParamDim("y", values=[1, 2])
+))
+
+# Properties
+volume(pspace)   # Total combinations: 6
+shape(pspace)    # (3, 2)
+dim_names(pspace) # [:x, :y]
+
+# State management for resumable iteration
+set_state!(pspace, 10)  # Jump to state 10
+state_no(pspace)        # Current state number
+reset!(pspace)          # Reset to beginning
+```
+
+### Masking and Subspace Selection
+
+Filter parameter values using masks:
+
+```julia
+pspace = ParamSpace([
+    ParamDim("x", values=[1, 2, 3, 4, 5]),
+    ParamDim("y", values=[10, 20, 30])
+])
+
+# Mask specific values
+set_mask!(pspace, :x, [true, false, true, false, true])  # Only 1, 3, 5
+
+# Activate a subspace by conditions
+activate_subspace!(pspace, Dict("x" => [1, 3, 5]))  # Only odd x values
+activate_subspace!(pspace, Dict("x" => [1, 2], "y" => 10))  # x in [1,2] and y=10
+
+# Clear masks
+clear_mask!(pspace, :x)
+clear_all_masks!(pspace)
+```
+
+### Coupled Parameters
+
+Synchronize parameters with coupled dimensions:
+
+```julia
+pspace = ParamSpace([
+    ParamDim("x", values=[1, 2, 3])
+])
+
+# Add coupled dimension: x_squared follows x
+add_coupled!(pspace, CoupledParamDim("x_squared", target=:x, values=[1, 4, 9]))
+
+for params in pspace
+    # params.x and params.x_squared are synchronized
+    # x=1 → x_squared=1, x=2 → x_squared=4, x=3 → x_squared=9
+end
+```
+
+### Analyzing Functions
+
+```julia
+# New API: function receives NamedTuple
+f(params) = params.x * params.y + params.z
+
+pspace = ParamSpace([
+    ParamDim("x", values=[1, 2]),
+    ParamDim("y", values=[1, 2]),
+    ParamDim("z", values=[0, 1])
+])
+
+result = analyse_function(f, pspace; folder="output", filename="results.csv")
+
+# With parallel execution (multi-threaded)
+result = analyse_function(f, pspace; parallel=:threads)
+
+# With extra arguments and keyword arguments
+g(params, scale=1) = params.x * scale
+result = analyse_function(g, pspace; scale=2)
+```
+
+### Analyzing External Programs
+
+```julia
+# Define command to run
+command = `julia simulation.jl`
+
+# Parameter file format (printf-style)
+content = "x = %d, y = %d"
+
+# Analysis function to extract results
+function analyse()
+    data = readlines("output.txt")
+    return parse(Float64, data[1])
+end
+
+pspace = ParamSpace([
+    ParamDim("x", values=[1, 10, 100]),
+    ParamDim("y", values=[1000, 10000])
+])
+
+result = analyse_program(command, content, "param.txt", pspace, analyse;
+    folder="output", filename="results.csv")
+```
+
+## Legacy API (Backward Compatibility)
+
+The original `Parameter` type is still supported:
+
+```julia
+# Legacy parameter definition
+params = [
+    Parameter("x", 1, 0:2),  # name, index, range
+    Parameter("y", 2, 0:2)
+]
+
+# Function receives arguments in order specified by Parameter.Index
+g(x, y) = x * y
+result = analyse_function(g, params)
+
+# Partial tuning (fix some parameters)
+params = [Parameter("y", 2, 0:0.1:0.5)]
+result = analyse_function(g, params, 1.0)  # x is fixed at 1.0
+```
+
+## Sampling Strategies Comparison
+
+| Strategy | Use Case | Pros | Cons |
+|----------|----------|------|------|
+| `GridSampling` | Small spaces, exhaustive search | Complete coverage | Exponential growth |
+| `RandomSampling` | Quick exploration | Simple, fast | Uneven coverage |
+| `LatinHypercubeSampling` | Medium-dimensional spaces | Good 1D projection | Not optimal for high dimensions |
+| `SobolSampling` | High-dimensional spaces | Low discrepancy, deterministic | Requires Sobol.jl |
+| `StratifiedGridSampling` | Large spaces, quick overview | Sparse but uniform | May miss important regions |
+
+## API Reference
+
+### Types
+- `ParamDim{T}`: Parameter dimension
+- `ParamSpace`: Multi-dimensional parameter space
+- `CoupledParamDim{T}`: Coupled parameter dimension
+- `Parameter{A}`: Legacy parameter type
+
+### Sampling Strategies
+- `AbstractSamplingStrategy`: Abstract base type
+- `RandomSampling(seed=nothing)`: Random uniform sampling
+- `LatinHypercubeSampling(seed=nothing)`: Latin Hypercube Sampling
+- `SobolSampling()`: Sobol quasi-random sequence
+- `GridSampling()`: Complete grid traversal
+- `StratifiedGridSampling(resolution)`: Sparse grid sampling
+
+### Functions
+- `analyse_function(f, pspace; strategy, n_samples, parallel, ...)`: Analyze function over parameter space
+- `analyse_program(cmd, content, paramfile, pspace, analyse; ...)`: Analyze external program
+- `sample(pspace, strategy; n)`: Sample points from parameter space
+- `load_yaml(filepath)`, `load_toml(filepath)`: Load from config files
+- `save_yaml(pspace, filepath)`, `save_toml(pspace, filepath)`: Save to config files
+
+## Examples
+
+See the `examples/` directory for more detailed examples:
+- `simple_function.jl`: Basic function tuning
+- `simple_program/`: External program tuning
+
