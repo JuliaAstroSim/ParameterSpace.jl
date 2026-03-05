@@ -1,43 +1,17 @@
 using Test
 using ParameterSpace
 
-@testset "Tuning function" begin
-    g(x::Real, y::Real) = x * y
+rm(joinpath(@__DIR__, "output"), recursive=true)
+mkoutputdir(joinpath(@__DIR__, "output"))
 
-    params = [Parameter("x", 1, 0:2),
-              Parameter("y", 2, 0:2)]
-
-    tuning = analyse_function(g, params)
-    @test sum(tuning.result) == 9
-
-
-    params = [Parameter("y", 2, 0:2)]
-    tuning = analyse_function(g, params, 1)
-    @test sum(tuning.result) == 3
-end
-
-@testset "Tuning program" begin
-    script = joinpath(pwd(), "program.jl")
-    command = `julia --startup-file=no $script`
-
-    params = [Parameter("x", 1, [1,10,100]),
-              Parameter("y", 2, [1000,10000])]
-
-    content = "x = %d, y = %d"
-
-    function analyse(x::Int)
-        f = readlines("param.txt")
-        return length(f[1]) + x
-    end
-
-    folder = mktempdir()
-    tuning = analyse_program(command, content, "param.txt", params, analyse, args = [-15];
-        folder = folder
-    )
-    @test sum(tuning.result) == 9
-    rm(folder, recursive=true, force=true)
-end
-
+include("test_datacore.jl")
+include("test_constraint.jl")
+include("test_constraints.jl")
+include("test_experiment.jl")
+include("test_dataset.jl")
+include("test_dataio.jl")
+include("test_coverage.jl")
+include("test_gaps.jl")
 include("test_paramdim.jl")
 include("test_paramspace.jl")
 include("test_coupled.jl")

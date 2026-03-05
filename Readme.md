@@ -208,6 +208,66 @@ result = analyse_program(command, content, "param.txt", pspace, analyse;
     folder="output", filename="results.csv")
 ```
 
+### Experiment Data Management
+
+Manage experimental data, constraints, and analysis results:
+
+```julia
+using ParameterSpace
+
+# Create a dataset for experimental data
+ds = DataSet{ExperimentData}("axion-mass-constraints")
+
+# Add experiment data points
+add!(ds, ExperimentData(
+    DataSource(citekey="Smith2020", paper="Axion Search", 
+               year=2020, method="Haloscope"),
+    params=(mass=1e-6, coupling=1e-12),
+    results=(sigma=2.5,),
+    uncertainty=(sigma=0.3,)
+))
+
+# Add constraint data
+add!(ds, ConstraintData(
+    DataSource(citekey="Jones2021", paper="Dark Matter Limits", 
+               year=2021, method="CMB"),
+    param=:mass,
+    lower=1e-9, upper=1e-7,
+    constraint_type=:exclude
+))
+
+# Query and filter data
+subset = filter(ds) do e
+    e.source.year >= 2020 && haskey(e.params, :mass)
+end
+
+# Statistical analysis
+stats = compute_statistics(ds, :sigma)
+# Returns: mean, std, median, min, max, count
+
+# Find gaps in parameter space coverage
+gaps = find_gaps(ds, pspace; n_gaps=10)
+```
+
+### Data Sources and Citations
+
+Track data provenance with `DataSource`:
+
+```julia
+source = DataSource(
+    citekey="Smith2020",
+    paper="Axion Dark Matter Search",
+    year=2020,
+    method="Haloscope",
+    notes="First results from new detector"
+)
+
+# Access source information
+source.citekey  # "Smith2020"
+source.year     # 2020
+source.method   # "Haloscope"
+```
+
 ## Legacy API (Backward Compatibility)
 
 The original `Parameter` type is still supported:
@@ -246,6 +306,13 @@ result = analyse_function(g, params, 1.0)  # x is fixed at 1.0
 - `CoupledParamDim{T}`: Coupled parameter dimension
 - `Parameter{A}`: Legacy parameter type
 
+### Experiment Data Types
+- `DataSet{T}`: Generic dataset container
+- `ExperimentData`: Experimental data point with params, results, and uncertainty
+- `ConstraintData`: Constraint data with parameter bounds
+- `DataSource`: Source metadata (citekey, paper, year, method, notes)
+- `GapRegion`: Gap region in parameter space with center and priority
+
 ### Sampling Strategies
 - `AbstractSamplingStrategy`: Abstract base type
 - `RandomSampling(seed=nothing)`: Random uniform sampling
@@ -260,6 +327,15 @@ result = analyse_function(g, params, 1.0)  # x is fixed at 1.0
 - `sample(pspace, strategy; n)`: Sample points from parameter space
 - `load_yaml(filepath)`, `load_toml(filepath)`: Load from config files
 - `save_yaml(pspace, filepath)`, `save_toml(pspace, filepath)`: Save to config files
+
+### Experiment Data Functions
+- `add!(dataset, data)`: Add data to dataset
+- `filter(f, dataset)`: Filter dataset with predicate
+- `compute_statistics(dataset, field)`: Compute statistics for a field
+- `find_gaps(dataset, pspace; n_gaps)`: Find gaps in parameter space coverage
+- `get_param(data, param)`: Get parameter value
+- `get_result(data, result)`: Get result value
+- `source(data)`: Get data source information
 
 ## Examples
 

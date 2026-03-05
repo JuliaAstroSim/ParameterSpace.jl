@@ -19,7 +19,7 @@ using DataFrames
     end
 
     result = analyse_program(command, content, "param.txt", pspace, analyse_fn,
-        args=[-15], folder="output/test_prog_new1")
+        args=[-15], folder=joinpath(@__DIR__, "output", "test_prog_new1"))
     @test nrow(result) == 6
 end
 
@@ -38,7 +38,7 @@ end
     end
 
     result = analyse_program(command, content, "param.txt", params, analyse_fn,
-        args=[-15], folder="output/test_prog_new2")
+        args=[-15], folder=joinpath(@__DIR__, "output", "test_prog_new2"))
     @test nrow(result) == 6
 end
 
@@ -56,7 +56,7 @@ end
     result = analyse_program(command, content, "param.txt", pspace, emptyfunction;
         strategy=RandomSampling(seed=42),
         n_samples=10,
-        folder="output/test_prog_new3")
+        folder=joinpath(@__DIR__, "output", "test_prog_new3"))
     @test nrow(result) == 10
 end
 
