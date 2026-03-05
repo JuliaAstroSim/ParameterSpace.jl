@@ -1,7 +1,7 @@
 using Test
 using ParameterSpace
 
-rm(joinpath(@__DIR__, "output"), recursive=true)
+rm(joinpath(@__DIR__, "output"); recursive=true, force=true)
 mkoutputdir(joinpath(@__DIR__, "output"))
 
 include("test_datacore.jl")
